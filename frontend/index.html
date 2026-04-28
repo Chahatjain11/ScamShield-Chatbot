@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ScamShield — AI Scam Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b0c10;
+    --surface: #13151c;
+    --surface2: #1c1f2a;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #edeef2;
+    --muted: #7b7e8c;
+    --accent: #00e5b0;
+    --accent-dim: rgba(0,229,176,0.12);
+    --danger: #ff4f5e;
+    --danger-dim: rgba(255,79,94,0.12);
+    --warn: #ffb84f;
+    --warn-dim: rgba(255,184,79,0.10);
+    --safe: #3dd68c;
+    --safe-dim: rgba(61,214,140,0.10);
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* === GRID BACKGROUND === */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,176,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,176,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* === GLOW ORBS === */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 { width: 420px; height: 420px; top: -100px; right: -80px; background: rgba(0,229,176,0.06); }
+  .orb-2 { width: 320px; height: 320px; bottom: -60px; left: -60px; background: rgba(255,79,94,0.05); }
+
+  /* === HEADER === */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(11,12,16,0.85);
+    backdrop-filter: blur(12px);
+  }
+
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo-icon svg { width: 20px; height: 20px; }
+
+  .logo-text {
+    font-family: var(--font-head);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    color: var(--text);
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .header-badge {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(0,229,176,0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+
+  /* === MAIN LAYOUT === */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 780px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 20px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* === HERO === */
+  .hero {
+    padding: 48px 0 32px;
+    text-align: center;
+  }
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(0,229,176,0.15);
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 22px;
+  }
+
+  .hero-tag::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .hero h1 {
+    font-family: var(--font-head);
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .hero p {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 300;
+    max-width: 440px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* === CHAT CONTAINER === */
+  .chat-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 24px;
+    gap: 16px;
+  }
+
+  .chat-messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+  }
+
+  /* === MESSAGE BUBBLES === */
+  .msg {
+    display: flex;
+    gap: 12px;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.user { flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font-head);
+  }
+
+  .msg.bot .msg-avatar { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,229,176,0.2); }
+  .msg.user .msg-avatar { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); font-size: 12px; }
+
+  .msg-body { flex: 1; max-width: 85%; }
+  .msg.user .msg-body { display: flex; justify-content: flex-end; }
+
+  .msg-bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .msg.user .msg-bubble {
+    background: var(--surface2);
+    border-color: var(--border2);
+    font-style: italic;
+    color: rgba(237,238,242,0.85);
+  }
+
+  /* === RESULT CARD === */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .result-header {
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .verdict-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+
+  .verdict-badge.danger { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(255,79,94,0.25); }
+  .verdict-badge.safe { background: var(--safe-dim); color: var(--safe); border: 1px solid rgba(61,214,140,0.25); }
+  .verdict-badge.warn { background: var(--warn-dim); color: var(--warn); border: 1px solid rgba(255,184,79,0.25); }
+
+  .verdict-badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .result-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .risk-meter-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+  .risk-meter-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+  }
+
+  .risk-meter-label strong { font-size: 18px; font-weight: 500; color: var(--text); }
+
+  .meter-track {
+    height: 6px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .meter-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .meter-fill.danger { background: linear-gradient(90deg, #ff4f5e, #ff8a94); }
+  .meter-fill.safe { background: linear-gradient(90deg, #3dd68c, #7effc4); }
+  .meter-fill.warn { background: linear-gradient(90deg, #ffb84f, #ffd48f); }
+
+  .reason-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13px;
+    color: rgba(237,238,242,0.75);
+    line-height: 1.5;
+  }
+
+  .indicators-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .indicator-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--warn);
+    background: var(--warn-dim);
+    border: 1px solid rgba(255,184,79,0.2);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+
+  .indicator-tag.safe-tag {
+    color: var(--safe);
+    background: var(--safe-dim);
+    border-color: rgba(61,214,140,0.2);
+  }
+
+  .confidence-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+
+  .conf-bar { flex: 1; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .conf-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+
+  /* === TYPING INDICATOR === */
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: fit-content;
+  }
+
+  .typing-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+    40% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* === EXAMPLE MESSAGES === */
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .example-btn {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .example-btn:hover {
+    border-color: var(--border2);
+    color: var(--text);
+    background: var(--surface2);
+  }
+
+  /* === INPUT AREA === */
+  .input-area {
+    position: sticky;
+    bottom: 0;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    background: linear-gradient(to top, var(--bg) 80%, transparent);
+  }
+
+  .input-box {
+    display: flex;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    padding: 8px 8px 8px 18px;
+    transition: border-color 0.2s;
+  }
+
+  .input-box:focus-within {
+    border-color: rgba(0,229,176,0.35);
+    box-shadow: 0 0 0 3px rgba(0,229,176,0.06);
+  }
+
+  .input-box textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+    padding: 6px 0;
+    max-height: 120px;
+    min-height: 36px;
+  }
+
+  .input-box textarea::placeholder { color: var(--muted); }
+
+  .send-btn {
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    align-self: flex-end;
+  }
+
+  .send-btn:hover { background: #00ffca; transform: scale(1.03); }
+  .send-btn:active { transform: scale(0.97); }
+  .send-btn:disabled { background: var(--surface2); cursor: not-allowed; opacity: 0.5; }
+
+  .send-btn svg { width: 18px; height: 18px; color: #0b0c10; }
+
+  .input-hint {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 8px;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<header>
+  <div class="logo-icon">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V7L12 2z" fill="#0b0c10"/>
+      <path d="M9 12l2 2 4-4" stroke="#0b0c10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <span class="logo-text">Scam<span>Shield</span></span>
+  <span class="header-badge">AI-POWERED</span>
+</header>
+
+<div class="main">
+  <div class="hero">
+    <div class="hero-tag">Real-time scam detection</div>
+    <h1>Is that message a <em>scam?</em></h1>
+    <p>Paste any suspicious message and our AI will instantly analyse it for scam patterns.</p>
+  </div>
+
+  <div class="chat-wrap">
+    <div class="chat-messages" id="chatMessages">
+      <!-- Welcome message -->
+      <div class="msg bot">
+        <div class="msg-avatar">🛡</div>
+        <div class="msg-body">
+          <div class="msg-bubble">
+            Hello! I'm ScamShield. Paste any suspicious message — SMS, email, WhatsApp — and I'll tell you if it's a scam, show the risk level, and explain the red flags I detect.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="examples" id="examplesRow">
+      <button class="example-btn" onclick="useExample(this)">You've won a $1000 gift card!</button>
+      <button class="example-btn" onclick="useExample(this)">Your meeting is at 3pm tomorrow</button>
+      <button class="example-btn" onclick="useExample(this)">Urgent: verify your PayPal account now</button>
+      <button class="example-btn" onclick="useExample(this)">Hi, can we catch up for coffee?</button>
+    </div>
+
+    <div class="input-area">
+      <div class="input-box">
+        <textarea
+          id="msgInput"
+          placeholder="Paste a suspicious message here..."
+          rows="2"
+          onkeydown="handleKey(event)"
+          oninput="autoResize(this)"
+        ></textarea>
+        <button class="send-btn" id="sendBtn" onclick="analyzeMessage()" title="Analyze">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+      <div class="input-hint">Press Enter to analyze &nbsp;·&nbsp; Shift+Enter for new line</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = "http://localhost:8000/analyze-text";
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    analyzeMessage();
+  }
+}
+
+function useExample(btn) {
+  const input = document.getElementById('msgInput');
+  input.value = btn.textContent;
+  autoResize(input);
+  input.focus();
+}
+
+function addMessage(role, content) {
+  const chat = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = role === 'bot' ? '🛡' : 'YOU';
+
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+
+  if (typeof content === 'string') {
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = content;
+    body.appendChild(bubble);
+  } else {
+    body.appendChild(content);
+  }
+
+  div.appendChild(avatar);
+  div.appendChild(body);
+  chat.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return div;
+}
+
+function addTyping() {
+  const chat = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.id = 'typingIndicator';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = '🛡';
+
+  const body = document.createElement('div');
+  body.className = 'msg-body';
+
+  const indicator = document.createElement('div');
+  indicator.className = 'typing-indicator';
+  indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  body.appendChild(indicator);
+  div.appendChild(avatar);
+  div.appendChild(body);
+  chat.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function removeTyping() {
+  const el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+function buildResultCard(data) {
+  const isHigh = data.risk === 'high';
+  const pct = data.risk_percentage;
+  const badgeClass = isHigh ? 'danger' : 'safe';
+  const meterClass = isHigh ? 'danger' : 'safe';
+  const label = isHigh ? 'SCAM DETECTED' : 'LOOKS SAFE';
+
+  const card = document.createElement('div');
+  card.className = 'result-card';
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'result-header';
+  header.innerHTML = `
+    <div class="verdict-badge ${badgeClass}">${label}</div>
+    <span style="font-size:13px; color:var(--muted); margin-left:auto; font-family:var(--font-mono);">
+      ${isHigh ? 'High risk' : 'Low risk'}
+    </span>
+  `;
+  card.appendChild(header);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'result-body';
+
+  // Risk meter
+  body.innerHTML += `
+    <div class="risk-meter-wrap">
+      <div class="risk-meter-label">
+        <span>Scam risk score</span>
+        <strong>${pct}%</strong>
+      </div>
+      <div class="meter-track">
+        <div class="meter-fill ${meterClass}" style="width:0%" id="meterFill_${Date.now()}"></div>
+      </div>
+    </div>
+  `;
+
+  // Reason
+  body.innerHTML += `
+    <div class="reason-box">
+      ${data.reason}
+    </div>
+  `;
+
+  // Indicators
+  if (data.indicators && data.indicators.length > 0) {
+    const indicatorsHtml = data.indicators.map(i =>
+      `<span class="indicator-tag">${i}</span>`
+    ).join('');
+    body.innerHTML += `
+      <div>
+        <div style="font-size:12px; color:var(--muted); margin-bottom:8px; font-family:var(--font-mono);">
+          Red flags detected (${data.indicators.length})
+        </div>
+        <div class="indicators-list">${indicatorsHtml}</div>
+      </div>
+    `;
+  } else if (!isHigh) {
+    body.innerHTML += `
+      <div class="indicators-list">
+        <span class="indicator-tag safe-tag">No red flags found</span>
+        <span class="indicator-tag safe-tag">Appears legitimate</span>
+      </div>
+    `;
+  }
+
+  // Confidence
+  const confPct = Math.round(data.confidence * 100);
+  body.innerHTML += `
+    <div class="confidence-row">
+      <span>AI confidence</span>
+      <div class="conf-bar">
+        <div class="conf-fill" style="width:${confPct}%"></div>
+      </div>
+      <span>${confPct}%</span>
+    </div>
+  `;
+
+  card.appendChild(body);
+
+  // Animate meter after render
+  setTimeout(() => {
+    const fill = card.querySelector('.meter-fill');
+    if (fill) fill.style.width = pct + '%';
+  }, 100);
+
+  return card;
+}
+
+async function analyzeMessage() {
+  const input = document.getElementById('msgInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const message = input.value.trim();
+  if (!message) return;
+
+  // Hide examples
+  document.getElementById('examplesRow').style.display = 'none';
+
+  // Add user message
+  addMessage('user', message);
+
+  // Clear input
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  // Typing
+  addTyping();
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+
+    const data = await response.json();
+    removeTyping();
+
+    // Build result
+    const resultEl = buildResultCard(data);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg-bubble';
+    wrapper.style.padding = '0';
+    wrapper.style.overflow = 'hidden';
+    wrapper.style.background = 'transparent';
+    wrapper.style.border = 'none';
+    wrapper.appendChild(resultEl);
+    addMessage('bot', wrapper);
+
+  } catch (err) {
+    removeTyping();
+    addMessage('bot', `Could not connect to the ScamShield backend. Make sure the FastAPI server is running at ${API_URL}.\n\nError: ${err.message}`);
+  }
+
+  sendBtn.disabled = false;
+  input.focus();
+}
+</script>
+</body>
+</html>
