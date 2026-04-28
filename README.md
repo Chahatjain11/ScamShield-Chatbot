@@ -37,3 +37,47 @@ and a dark-themed chat frontend.
 ---
 
 ## 📁 Project Structure
+ScamShield-Chatbot/
+├── backend/
+│   ├── init.py
+│   ├── main.py        # FastAPI app
+│   ├── model.py       # Prediction logic
+│   └── schemas.py     # Pydantic I/O schemas
+├── data/
+│   └── messages.csv   # Labelled training dataset
+├── model/
+│   ├── scam_detector.joblib
+│   └── vectorizer.joblib
+├── frontend/
+│   └── index.html     # Chatbot UI
+├── train_model.py     # Train and save the model
+├── requirements.txt
+└── README.md
+---
+
+## ⚙️ Setup & Run
+
+### 1. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Train the model
+```bash
+python train_model.py
+```
+
+### 3. Start the backend
+```bash
+uvicorn backend.main:app --reload
+```
+
+### 4. Open the frontend
+Open `frontend/index.html` in your browser.
+
+---
+
+## 👩‍💻 Developed By
+**Chahat Jain** — Department of Artificial Intelligence & Machine Learning
+
+*Project Competition — Building Intelligent Chatbot*
