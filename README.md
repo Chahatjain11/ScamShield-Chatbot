@@ -37,9 +37,11 @@ and a dark-themed chat frontend.
 ---
 
 ## 📁 Project Structure
+
+```
 ScamShield-Chatbot/
 ├── backend/
-│   ├── init.py
+│   ├── __init__.py
 │   ├── main.py        # FastAPI app
 │   ├── model.py       # Prediction logic
 │   └── schemas.py     # Pydantic I/O schemas
@@ -53,7 +55,7 @@ ScamShield-Chatbot/
 ├── train_model.py     # Train and save the model
 ├── requirements.txt
 └── README.md
----
+```
 
 ## ⚙️ Setup & Run
 
